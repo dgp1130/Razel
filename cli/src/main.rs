@@ -1,3 +1,4 @@
+mod host;
 mod target_pattern;
 
 use clap::{Parser, Subcommand};
