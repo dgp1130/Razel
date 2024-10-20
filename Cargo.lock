@@ -52,6 +52,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "assertables"
+version = "8.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "857057651cdf1fe4bc1e8308493c752db559df0330f23b45f532f6b24c2b443d"
+
+[[package]]
 name = "clap"
 version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -95,6 +101,7 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 name = "cli"
 version = "0.1.0"
 dependencies = [
+ "assertables",
  "clap",
 ]
 
