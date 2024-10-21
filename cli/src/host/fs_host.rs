@@ -8,7 +8,7 @@ pub struct FsHost {
 
 impl FsHost {
   /// Returns an `FsHost` using the given path as the workspace root.
-  fn from(wksp_root: &Path) -> Result<FsHost, Box<dyn Error>> {
+  pub fn from(wksp_root: &Path) -> Result<FsHost, Box<dyn Error>> {
     Ok(FsHost {
       wksp_root: wksp_root.canonicalize()?,
     })

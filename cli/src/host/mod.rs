@@ -1,2 +1,2 @@
-mod host;
-mod fs_host;
+pub mod host;
+pub mod fs_host;
