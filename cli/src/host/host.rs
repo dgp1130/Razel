@@ -14,6 +14,23 @@ pub trait Host {
   fn list(&self, path: &Path) -> Result<Vec<Entry>, Box<dyn Error>>;
 }
 
+/// List all recursive files in the given directory. Directories are *not*
+/// returned.
+pub fn list_all_files(host: &dyn Host, path: &Path) ->
+    Result<Vec<PathBuf>, Box<dyn Error>> {
+  Ok(
+    host.list(path)?.into_iter().map(|entry| match entry.kind {
+      EntryKind::File => Ok(vec![entry.path.to_path_buf()]),
+      EntryKind::Directory => list_all_files(host, &entry.path)
+    }).collect::<Vec<Result<Vec<PathBuf>, Box<dyn Error>>>>()
+      .into_iter()
+      .collect::<Result<Vec<Vec<PathBuf>>, Box<dyn Error>>>()?
+      .into_iter()
+      .flatten()
+      .collect()
+  )
+}
+
 /// A file entry.
 #[derive(Debug, Eq, Ord, PartialOrd, PartialEq)]
 pub struct Entry {
@@ -43,5 +60,76 @@ impl Display for ExternalPathError {
 impl Error for ExternalPathError {
   fn description(&self) -> &str {
     &self.0
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use assertables::{assert_contains, assert_is_empty, assert_set_eq, assert_set_impl_prep};
+  use crate::host::fs_host::FsHost;
+  use crate::host::test_dir::{TestContents, TestDir};
+
+  #[test]
+  fn find_all_files_finds_recursive_files_in_root_directory() -> Result<(), Box<dyn Error>> {
+    let dir = TestDir::from([
+      (Path::new("foo/bar/baz.txt"), TestContents::File("")),
+      (Path::new("foo/bar/hello/world.txt"), TestContents::File("")),
+      (Path::new("not/included.txt"), TestContents::File("")),
+    ])?;
+
+    let host = FsHost::from(&dir.root)?;
+
+    assert_set_eq!(list_all_files(&host, Path::new(""))?, [
+      PathBuf::from("foo/bar/baz.txt"),
+      PathBuf::from("foo/bar/hello/world.txt"),
+      PathBuf::from("not/included.txt"),
+    ]);
+
+    Ok(())
+  }
+
+  #[test]
+  fn find_all_files_finds_recursive_files_in_subdirectory() -> Result<(), Box<dyn Error>> {
+    let dir = TestDir::from([
+      (Path::new("foo/bar/baz.txt"), TestContents::File("")),
+      (Path::new("foo/bar/hello/world.txt"), TestContents::File("")),
+      (Path::new("not/included.txt"), TestContents::File("")),
+    ])?;
+
+    let host = FsHost::from(&dir.root)?;
+
+    assert_set_eq!(list_all_files(&host, Path::new("foo"))?, [
+      PathBuf::from("foo/bar/baz.txt"),
+      PathBuf::from("foo/bar/hello/world.txt"),
+    ]);
+
+    Ok(())
+  }
+
+  #[test]
+  fn find_all_files_empty_directory_returns_no_files() -> Result<(), Box<dyn Error>> {
+    let dir = TestDir::from([
+      (Path::new("foo"), TestContents::Directory),
+      (Path::new("not/included.txt"), TestContents::File("")),
+    ])?;
+
+    let host = FsHost::from(&dir.root)?;
+
+    assert_is_empty!(list_all_files(&host, Path::new("foo"))?);
+
+    Ok(())
+  }
+
+  #[test]
+  fn find_all_files_nonexistent_directory_errors() -> Result<(), Box<dyn Error>> {
+    let dir = TestDir::from([])?;
+
+    let host = FsHost::from(&dir.root)?;
+
+    let err = list_all_files(&host, Path::new("foo")).unwrap_err();
+    assert_contains!(err.to_string(), "No such file");
+
+    Ok(())
   }
 }
