@@ -76,44 +76,13 @@ fn normalize(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
 mod test {
   use super::*;
   use assertables::{assert_err, assert_set_eq, assert_set_impl_prep};
-  use rand::random;
-  use std::{env::temp_dir, io, path::PathBuf};
-
-  struct TestDir {
-    root: PathBuf,
-  }
-
-  impl TestDir {
-    fn from<const SIZE: usize>(files: [(&Path, &str); SIZE]) ->
-        Result<TestDir, io::Error> {
-      let root = temp_dir().join(format!(
-        "razel-fshost-{:0>5}", // Left-pad random number.
-        random::<i16>(),
-      ));
-      fs::create_dir_all(&root)?;
-
-      for (path, contents) in files.iter() {
-        let resolved = root.join(path);
-        let dir = resolved.parent().unwrap();
-        fs::create_dir_all(&dir)?;
-
-        fs::write(resolved, contents)?;
-      }
-
-      Ok(TestDir { root })
-    }
-  }
-
-  impl Drop for TestDir {
-    fn drop(&mut self) {
-      fs::remove_dir_all(&self.root).unwrap();
-    }
-  }
+  use std::path::PathBuf;
+  use crate::host::test_dir::{TestContents, TestDir};
 
   #[test]
   fn read_to_string_reads_file() -> Result<(), Box<dyn Error>> {
     let dir = TestDir::from([
-      (Path::new("foo.txt"), "Hello, World!"),
+      (Path::new("foo.txt"), TestContents::File("Hello, World!")),
     ])?;
 
     let host = FsHost::from(&dir.root)?;
@@ -126,7 +95,7 @@ mod test {
   #[test]
   fn read_to_string_reads_nested_file() -> Result<(), Box<dyn Error>> {
     let dir = TestDir::from([
-      (Path::new("foo/bar/baz.txt"), "Hello, World!"),
+      (Path::new("foo/bar/baz.txt"), TestContents::File("Hello, World!")),
     ])?;
 
     let host = FsHost::from(&dir.root)?;
@@ -165,9 +134,9 @@ mod test {
   #[test]
   fn list_finds_files_in_directory() -> Result<(), Box<dyn Error>> {
     let dir = TestDir::from([
-      (Path::new("foo.txt"), ""),
-      (Path::new("bar.txt"), ""),
-      (Path::new("baz/test.txt"), ""),
+      (Path::new("foo.txt"), TestContents::File("")),
+      (Path::new("bar.txt"), TestContents::File("")),
+      (Path::new("baz/test.txt"), TestContents::File("")),
     ])?;
 
     let host = FsHost::from(&dir.root)?;
@@ -196,9 +165,9 @@ mod test {
   #[test]
   fn list_finds_files_in_subdirectory() -> Result<(), Box<dyn Error>> {
     let dir = TestDir::from([
-      (Path::new("dir/foo.txt"), ""),
-      (Path::new("dir/bar.txt"), ""),
-      (Path::new("dir/baz/test.txt"), ""),
+      (Path::new("dir/foo.txt"), TestContents::File("")),
+      (Path::new("dir/bar.txt"), TestContents::File("")),
+      (Path::new("dir/baz/test.txt"), TestContents::File("")),
     ])?;
 
     let host = FsHost::from(&dir.root)?;
