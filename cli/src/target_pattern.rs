@@ -3,16 +3,14 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 
 /// A pattern describing a set of targets.
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TargetPattern {
   pub package: String,
   pub scope: PatternScope,
 }
 
 /// A scope defining which targets in a package to include.
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PatternScope {
   /// References just a single target of a specified name in the given package.
   SingleTarget(String),
@@ -30,6 +28,14 @@ impl TargetPattern {
   /// Returns an `Err(ParseError)` if the input string does not match the
   /// expected format.
   pub fn parse(pattern: &str) -> Result<TargetPattern, ParseError> {
+    // Special case `//...` which will otherwise fail parsing.
+    if pattern == "//..." {
+      return Ok(TargetPattern {
+        package: "".to_owned(),
+        scope: PatternScope::Descendants,
+      })
+    }
+
     // Require leading `//`.
     let without_leading_slashes = pattern.strip_prefix("//");
     if let None = without_leading_slashes {
@@ -97,8 +103,7 @@ impl Display for TargetPattern {
 }
 
 /// An error from parsing an incorrectly formatted `TargetPattern`.
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ParseError(pub String);
 
 impl Display for ParseError {
@@ -138,6 +143,14 @@ mod test {
   fn parse_parses_descendants_scope() {
     assert_eq!(TargetPattern::parse("//path/to/pkg/..."), Ok(TargetPattern {
       package: "path/to/pkg".to_owned(),
+      scope: PatternScope::Descendants,
+    }))
+  }
+
+  #[test]
+  fn parse_parses_everything_pattern() {
+    assert_eq!(TargetPattern::parse("//..."), Ok(TargetPattern {
+      package: "".to_owned(),
       scope: PatternScope::Descendants,
     }))
   }
