@@ -56,13 +56,24 @@ fn main() -> ExitCode {
 
       // Resolve packages from target patterns.
       let loader = PackageLoader::from(&host);
-      match loader.resolve_packages(patterns.clone()) {
+      let pkgs = match loader.resolve_packages(patterns.clone()) {
         Ok(pkgs) => pkgs,
         Err(error) => {
           eprintln!("ERROR: Failed to resolve packages\n{}", error);
           return ExitCode::FAILURE;
         },
       };
+
+      // Load packages.
+      let load_result = loader.load_packages(
+        &pkgs.iter()
+          .map(|pkg| pkg.as_path())
+          .collect(),
+      );
+      if let Err(error) = load_result {
+        eprintln!("ERROR: Failed to load packages\n{}", error);
+        return ExitCode::FAILURE;
+      }
 
       ExitCode::SUCCESS
     }

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 use crate::host::host::{Host, list_all_files};
 use crate::target_pattern::{PatternScope, TargetPattern};
@@ -38,6 +38,41 @@ impl<'a> PackageLoader<'a> {
         .map(|build_file| build_file.parent().unwrap().to_path_buf())
         .collect::<HashSet<PathBuf>>(),
     )
+  }
+
+  /// Loads the given package paths by executing them in v8.
+  pub fn load_packages(&self, pkgs: &HashSet<&Path>) ->
+      Result<(), Box<dyn Error>> {
+    let build_pkgs = pkgs.iter()
+      // Resolve the `BUILD.js` path.
+      .map(|pkg| Path::new(&pkg).join(Path::new("BUILD.js")))
+      // Read the `BUILD.js` file.
+      .map(|pkg_path| self.host.read_to_string(&pkg_path)
+          // Combine package path and build file contents.
+          .map(|build_file| (pkg_path, build_file))
+      ).collect::<Result<Vec<_>, _>>()?;
+
+    for (pkg_path, build_file) in build_pkgs {
+      eprintln!("Loading package: {}", pkg_path.to_str().unwrap());
+      eprintln!("Evaluating `{}`:\n{}", pkg_path.to_str().unwrap(), build_file);
+    }
+
+    Ok(())
+  }
+}
+
+#[derive(Debug)]
+pub struct LoadError(String);
+
+impl Display for LoadError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      write!(f, "{}", &self.0)
+  }
+}
+
+impl Error for LoadError {
+  fn description(&self) -> &str {
+      &self.0
   }
 }
 
