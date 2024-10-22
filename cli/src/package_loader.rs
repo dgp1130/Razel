@@ -41,8 +41,11 @@ impl<'a> PackageLoader<'a> {
   }
 
   /// Loads the given package paths by executing them in v8.
-  pub fn load_packages(&self, pkgs: &HashSet<&Path>) ->
-      Result<(), Box<dyn Error>> {
+  pub fn load_packages<'b>(
+    &self,
+    exec: &mut impl FnMut(&str) -> (),
+    pkgs: &HashSet<&Path>,
+  ) -> Result<(), Box<dyn Error>> {
     let build_pkgs = pkgs.iter()
       // Resolve the `BUILD.js` path.
       .map(|pkg| Path::new(&pkg).join(Path::new("BUILD.js")))
@@ -54,7 +57,7 @@ impl<'a> PackageLoader<'a> {
 
     for (pkg_path, build_file) in build_pkgs {
       eprintln!("Loading package: {}", pkg_path.to_str().unwrap());
-      eprintln!("Evaluating `{}`:\n{}", pkg_path.to_str().unwrap(), build_file);
+      exec(&build_file);
     }
 
     Ok(())
